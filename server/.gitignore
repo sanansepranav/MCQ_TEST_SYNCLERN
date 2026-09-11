@@ -1,0 +1,5 @@
+node_modules/
+.env
+uploads/
+.mongodb_data/
+*.log
