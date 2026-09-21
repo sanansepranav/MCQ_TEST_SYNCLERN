@@ -60,120 +60,101 @@ const MyResults = () => {
       </div>
 
       {results.length === 0 ? (
-        <div style={{
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border-color)',
-          borderRadius: '16px',
-          padding: '60px 40px',
-          textAlign: 'center',
-          marginTop: '8px'
+        <div className="glass-card" style={{
+          borderRadius: 20, padding: '64px 32px', textAlign: 'center', marginTop: 8
         }}>
           <div style={{
-            width: '64px',
-            height: '64px',
-            background: 'var(--accent-blue-bg)',
-            borderRadius: '16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 20px',
-            fontSize: '28px'
+            width: 64, height: 64, background: 'rgba(59,130,246,0.1)', borderRadius: 18,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 20px', fontSize: 28, border: '1px solid rgba(59,130,246,0.2)'
           }}>
             📊
           </div>
-          <p style={{
-            fontSize: '16px',
-            fontWeight: '600',
-            color: 'var(--text-primary)',
-            marginBottom: '8px'
+          <h3 style={{
+            fontFamily: "'Sora', sans-serif", fontSize: 18, fontWeight: 700,
+            color: 'var(--text-primary)', marginBottom: 8
           }}>
-            No results yet
-          </p>
+            No results recorded yet
+          </h3>
           <p style={{
-            fontSize: '14px',
-            color: 'var(--text-secondary)',
-            marginBottom: '24px'
+            fontSize: 14, color: 'var(--text-secondary)', marginBottom: 24, maxWidth: 360, marginInline: 'auto'
           }}>
-            Take a test to see your scores here
+            Once you complete a scheduled test or practice coding assessment, your score breakdown will appear here.
           </p>
-          <button style={{
-            background: 'var(--accent-blue)',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '10px',
-            padding: '11px 24px',
-            fontSize: '14px',
-            fontWeight: '600',
-            cursor: 'pointer'
-          }}
-          onClick={() => navigate('/student/dashboard')}
+          <button
+            className="dms-btn dms-btn-primary"
+            style={{ padding: '12px 28px', fontSize: 14, borderRadius: 12 }}
+            onClick={() => navigate('/student/dashboard')}
           >
             Browse Available Tests →
           </button>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
           {results.map((r) => {
             const pass = (r.percentage || 0) >= 40;
             return (
               <div
                 key={r._id}
                 onClick={() => navigate(`/student/results/${r._id}`)}
+                className="glass-card glass-card-hover"
                 style={{
-                  background: 'var(--bg-surface)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '16px',
-                  padding: '20px 24px',
-                  marginBottom: '12px',
-                  boxShadow: theme === 'light' ? 'var(--shadow-sm)' : 'none',
+                  borderRadius: 20,
+                  padding: '24px',
                   cursor: 'pointer',
-                  transition: 'border-color 0.2s',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  position: 'relative'
                 }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--border-hover)'}
-                onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-color)'}
               >
                 {/* Title + Badge */}
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {r.testId?.title || 'Unknown Test'}
+                  <div style={{ flex: 1, minWidth: 0, paddingRight: 10 }}>
+                    <h3 style={{
+                      fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 700,
+                      color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', margin: 0
+                    }}>
+                      {r.testId?.title || 'Assessment'}
                     </h3>
-                    <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{r.testId?.subject || 'General'}</p>
+                    <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, margin: 0 }}>
+                      {r.testId?.subject || 'Engineering Assessment'}
+                    </p>
                   </div>
                   <span style={{
-                    marginLeft: 8, padding: '4px 10px', borderRadius: 20, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, flexShrink: 0,
+                    padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.8, flexShrink: 0,
                     background: pass ? 'var(--accent-green-bg)' : 'var(--accent-red-bg)',
-                    color: pass ? 'var(--accent-green)' : 'var(--accent-red)'
+                    color: pass ? 'var(--accent-green)' : 'var(--accent-red)',
+                    border: `1px solid ${pass ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)'}`
                   }}>
                     {pass ? 'PASS' : 'FAIL'}
                   </span>
                 </div>
 
                 {/* Score */}
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 16 }}>
-                  <p style={{ fontFamily: "'Sora', sans-serif", fontSize: 28, fontWeight: 700, color: pass ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 16 }}>
+                  <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 32, fontWeight: 800, color: pass ? 'var(--accent-green)' : 'var(--accent-red)', letterSpacing: '-0.5px' }}>
                     {r.percentage}%
-                  </p>
-                  <p style={{ fontSize: 14, color: 'var(--text-muted)', paddingBottom: 2 }}>
-                    {r.score}/{r.totalMarks}
-                  </p>
+                  </span>
+                  <span style={{ fontSize: 14, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    Score: {r.score} / {r.totalMarks}
+                  </span>
                 </div>
 
-                {/* Meta */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)' }}>
-                  <span>{formatDate(r.submittedAt)}</span>
+                {/* Meta chips */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)', marginTop: 'auto' }}>
+                  <span>📅 {formatDate(r.submittedAt)}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     {r.autoSubmitted && (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--accent-red)' }}>
-                        <HiOutlineExclamationTriangle size={12} /> Auto
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--accent-red)', fontWeight: 600 }}>
+                        <HiOutlineExclamationTriangle size={13} /> Auto
                       </span>
                     )}
-                    <span>{formatTime(r.timeTaken)}</span>
+                    <span>⏱️ {formatTime(r.timeTaken)}</span>
                   </div>
                 </div>
 
-                {/* View detail arrow */}
-                <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                {/* Footer action */}
+                <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   {r.testId?.testType === 'combined' ? (
                     <button
                       onClick={(e) => {
@@ -181,22 +162,23 @@ const MyResults = () => {
                         navigate(`/student/combined-result/${r.testId._id || r.testId}`);
                       }}
                       style={{
-                        background:'var(--accent-blue-bg)',
-                        border:'1px solid var(--accent-blue-border)',
-                        borderRadius:'8px',
-                        padding:'6px 14px',
-                        fontSize:'12px',
-                        color:'var(--accent-blue)',
-                        cursor:'pointer'
+                        background: 'rgba(59,130,246,0.1)',
+                        border: '1px solid rgba(59,130,246,0.25)',
+                        borderRadius: 10,
+                        padding: '6px 14px',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: 'var(--accent-blue)',
+                        cursor: 'pointer'
                       }}
                     >
-                      🎯 View Combined Result
+                      🎯 Combined Result
                     </button>
                   ) : (
                     <div />
                   )}
-                  <span style={{ fontSize: 12, color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    View MCQ Details <HiOutlineArrowRight size={12} />
+                  <span style={{ fontSize: 13, color: 'var(--accent-blue)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    View Details <HiOutlineArrowRight size={13} />
                   </span>
                 </div>
               </div>

@@ -56,36 +56,40 @@ const AdminLogin = () => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div className="animate-fade-in" style={{
-        background: theme === 'light' ? '#ffffff' : 'var(--bg-surface)',
-        border: theme === 'light' ? '1px solid #e2e8f0' : '1px solid var(--border-color)',
-        borderRadius: 20, padding: 40, width: '100%', maxWidth: 420,
-        boxShadow: theme === 'light' ? '0 8px 40px rgba(0,0,0,0.10)' : 'none'
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, position: 'relative', overflow: 'hidden' }}>
+      {/* Ambient background glow */}
+      <div className="mesh-glow-bg" />
+
+      <div className="animate-fade-in glass-card" style={{
+        borderRadius: 22, padding: '44px 36px', width: '100%', maxWidth: 440,
+        position: 'relative', zIndex: 1,
+        boxShadow: theme === 'light' ? '0 20px 50px -10px rgba(245, 158, 11, 0.15)' : '0 25px 60px -15px rgba(0,0,0,0.7)'
       }}>
-        {/* Icon — amber */}
+        {/* Icon — amber gradient */}
         <div style={{
-          width: 56, height: 56, borderRadius: 14, background: 'var(--accent-amber)',
+          width: 58, height: 58, borderRadius: 16,
+          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          margin: '0 auto 20px', fontSize: 24,
+          margin: '0 auto 18px', fontSize: 26, color: '#fff',
+          boxShadow: '0 8px 24px rgba(245, 158, 11, 0.35)'
         }}>🛡️</div>
 
-        <h1 style={{ fontFamily: "'Sora', sans-serif", fontSize: 24, fontWeight: 700, textAlign: 'center', color: 'var(--text-primary)', marginBottom: 6 }}>
+        <h1 style={{ fontFamily: "'Sora', sans-serif", fontSize: 24, fontWeight: 800, textAlign: 'center', color: 'var(--text-primary)', marginBottom: 6, letterSpacing: '-0.5px' }}>
           Admin Portal
         </h1>
-        <p style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', marginBottom: 32 }}>
-          Restricted access. Authorized personnel only.
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 28 }}>
+          Faculty & Examination Controller Access
         </p>
 
         <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: 20 }}>
-            <label style={labelStyle}>Email Address</label>
+          <div style={{ marginBottom: 18 }}>
+            <label style={labelStyle}>Admin Email Address</label>
             <input type="email" placeholder="admin@synctest.com"
               value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
               onFocus={() => setFEmail(true)} onBlur={() => setFEmail(false)} style={inputStyle(fEmail)} />
           </div>
 
-          <div style={{ marginBottom: 28 }}>
+          <div style={{ marginBottom: 26 }}>
             <label style={labelStyle}>Password</label>
             <div style={{ display: 'flex', gap: 8 }}>
               <input type={showPw ? 'text' : 'password'} placeholder="••••••••"
@@ -103,14 +107,19 @@ const AdminLogin = () => {
             </div>
           </div>
 
-          <button type="submit" disabled={loading} className="dms-btn dms-btn-amber dms-btn-full" style={{ padding: 14 }}>
-            {loading ? 'Signing in...' : 'Sign In as Admin'}
+          <button type="submit" disabled={loading} className="dms-btn dms-btn-full" style={{
+            padding: 14, fontSize: 15, borderRadius: 12,
+            background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+            color: '#ffffff', fontWeight: 700,
+            boxShadow: '0 4px 16px rgba(245, 158, 11, 0.3)'
+          }}>
+            {loading ? 'Authenticating...' : 'Sign In as Administrator →'}
           </button>
         </form>
 
-        <div style={{ marginTop: 24, textAlign: 'center' }}>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '8px 0' }}>
-            <Link to="/login" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>← Back to Student Login</Link>
+        <div style={{ marginTop: 24, textAlign: 'center', paddingTop: 16, borderTop: '1px solid var(--border-color)' }}>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0' }}>
+            <Link to="/login" style={{ color: 'var(--accent-blue)', textDecoration: 'none', fontWeight: 600 }}>← Back to Student Sign In</Link>
           </p>
         </div>
       </div>
