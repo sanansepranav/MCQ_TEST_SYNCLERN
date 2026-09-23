@@ -41,7 +41,7 @@ const playAlertSound = (type = 'warning') => {
 const WebcamProctor = ({
   isActive = true,
   onViolation = () => {},
-  maxWarnings = 3,
+  maxWarnings = 6,
   requireFullscreen = true,
 }) => {
   const videoRef = useRef(null);
@@ -185,8 +185,8 @@ const WebcamProctor = ({
   const triggerWarning = useCallback(
     (violationType, message) => {
       const now = Date.now();
-      // Throttle warnings to once every 4 seconds to avoid spamming
-      if (now - lastViolationTimeRef.current < 4000) return;
+      // Throttle warnings to once every 5 seconds to avoid spamming
+      if (now - lastViolationTimeRef.current < 5000) return;
       lastViolationTimeRef.current = now;
 
       playAlertSound('danger');
@@ -363,7 +363,7 @@ const WebcamProctor = ({
     ]);
   };
 
-  // High-Precision Canvas Computer Vision Fallback (Zero-Dependency & Universal)
+  // High-Precision Canvas Computer Vision (Zero-Dependency & Universal)
   const evaluateCanvasCV = (frame) => {
     const isCalibrating = Date.now() - startupTimeRef.current < 3500;
     const data = frame.data;
@@ -380,9 +380,6 @@ const WebcamProctor = ({
     let maxSkinX = 0;
     let minSkinY = h;
     let maxSkinY = 0;
-
-    // 5 horizontal column buckets across width (0..31, 32..63, 64..95, 96..127, 128..159)
-    const colSkinCounts = [0, 0, 0, 0, 0];
 
     for (let i = 0; i < data.length; i += 4) {
       const r = data[i];
@@ -403,29 +400,19 @@ const WebcamProctor = ({
       const rn = sumRGB > 0 ? r / sumRGB : 0;
       const gn = sumRGB > 0 ? g / sumRGB : 0;
 
-      // Model 1: YCbCr Elliptical/Box Boundary (Illumination-invariant across fair to dark skin)
-      const isSkinYCbCr = Cb >= 73 && Cb <= 138 && Cr >= 126 && Cr <= 182 && Y >= 22;
-
-      // Model 2: Normalized Chromaticity (Robust against white balance shifts)
+      // Standard Human Skin Color Model (YCbCr + Normalized RGB)
+      // Eliminates false triggers on yellow/beige background walls while covering real human ethnicities
+      const isSkinYCbCr = Cb >= 77 && Cb <= 130 && Cr >= 133 && Cr <= 173 && Y >= 30 && Y <= 235;
       const isSkinNorm =
-        rn >= 0.31 &&
-        rn <= 0.62 &&
-        gn >= 0.23 &&
-        gn <= 0.40 &&
-        rn >= gn - 0.04 &&
-        r >= b - 20 &&
-        sumRGB >= 50;
+        rn >= 0.34 &&
+        rn <= 0.58 &&
+        gn >= 0.26 &&
+        gn <= 0.38 &&
+        rn >= gn &&
+        r > b &&
+        sumRGB >= 70;
 
-      // Model 3: Relaxed Indoor Warmth (Handles cool laptop screens, LED lamps, and low light)
-      const isSkinWarm =
-        r > 38 &&
-        g > 25 &&
-        b > 15 &&
-        r >= b - 15 &&
-        r + g > 1.8 * b &&
-        Math.max(r, g, b) - Math.min(r, g, b) >= 5;
-
-      const isSkin = isSkinYCbCr || isSkinNorm || isSkinWarm;
+      const isSkin = isSkinYCbCr || isSkinNorm;
 
       if (isSkin) {
         skinPixels++;
@@ -435,14 +422,11 @@ const WebcamProctor = ({
         if (x > maxSkinX) maxSkinX = x;
         if (y < minSkinY) minSkinY = y;
         if (y > maxSkinY) maxSkinY = y;
-
-        const col = Math.min(4, Math.floor((x / w) * 5));
-        colSkinCounts[col]++;
       }
 
-      // Central region gradient / edge structure (eyes, nose, mouth, hair, shoulders)
-      // Central 70% width (x: 24..136) and 80% height (y: 12..108)
-      if (x >= 24 && x <= 136 && y >= 12 && y <= 108 && x < w - 1 && y < h - 1) {
+      // Central facial region structural edge detection (eyes, eyebrows, nose, mouth)
+      // Central 70% width (x: 24..136) and 75% height (y: 15..105)
+      if (x >= 24 && x <= 136 && y >= 15 && y <= 105 && x < w - 1 && y < h - 1) {
         const nextIdx = (pixelIdx + 1) * 4;
         const downIdx = (pixelIdx + w) * 4;
         const rightY = 0.299 * data[nextIdx] + 0.587 * data[nextIdx + 1] + 0.114 * data[nextIdx + 2];
@@ -456,14 +440,11 @@ const WebcamProctor = ({
     }
 
     const avgBrightness = totalLuminance / totalPixels;
-    const skinRatio = skinPixels / totalPixels;
-    const centralTotal = (136 - 24) * (108 - 12);
-    const edgeRatio = edgePixels / centralTotal;
 
     // ── CASE 1: Camera physically covered or dark / overexposed ──
     if (avgBrightness < 10) {
       consecutiveFailuresRef.current.noFace++;
-      if (consecutiveFailuresRef.current.noFace >= 6 && !isCalibrating) {
+      if (consecutiveFailuresRef.current.noFace >= 8 && !isCalibrating) {
         setProctorStatus('no-face');
         setStatusMessage('⚠️ Camera Obstructed / Too Dark');
         setFaceBoxes([]);
@@ -474,7 +455,7 @@ const WebcamProctor = ({
 
     if (avgBrightness > 248) {
       consecutiveFailuresRef.current.noFace++;
-      if (consecutiveFailuresRef.current.noFace >= 6 && !isCalibrating) {
+      if (consecutiveFailuresRef.current.noFace >= 8 && !isCalibrating) {
         setProctorStatus('no-face');
         setStatusMessage('⚠️ Camera Overexposed');
         setFaceBoxes([]);
@@ -483,34 +464,12 @@ const WebcamProctor = ({
       return;
     }
 
-    // ── CASE 2: Multiple people detected in frame ──
-    const leftSkin = colSkinCounts[0] + colSkinCounts[1];
-    const rightSkin = colSkinCounts[3] + colSkinCounts[4];
-    const leftRatio = leftSkin / totalPixels;
-    const rightRatio = rightSkin / totalPixels;
-
-    if (skinRatio > 0.22 && leftRatio > 0.08 && rightRatio > 0.08) {
-      consecutiveFailuresRef.current.multiFace++;
-      consecutiveFailuresRef.current.noFace = 0;
-
-      if (consecutiveFailuresRef.current.multiFace >= 4 && !isCalibrating) {
-        setProctorStatus('multiple-faces');
-        setStatusMessage('🚨 Multiple People Detected!');
-        setFaceBoxes([
-          { x: 10, y: 15, w: 35, h: 60, isViolation: true, label: 'PERSON 1' },
-          { x: 55, y: 15, w: 35, h: 60, isViolation: true, label: 'PERSON 2' },
-        ]);
-        triggerWarning(
-          'multiple-faces-detected',
-          'Multiple people detected in webcam! Exam must be taken alone.'
-        );
-      }
-      return;
-    }
-
-    // ── CASE 3: Person Present (1 Examinee Verified) ──
-    // Minimum 150 skin pixels (0.8% of frame) OR central head/facial contrast edges
-    const isPersonPresent = skinRatio >= 0.008 || (edgeRatio >= 0.035 && avgBrightness >= 20);
+    // ── CASE 2: Real Examinee Present (1 Person Verified) ──
+    // A real person has skin pixels AND facial structural features (eyes, nose, mouth)
+    // A blank wall or empty room has < 30 edge pixels and will NOT pass this check!
+    const isPersonPresent =
+      (skinPixels >= 100 && edgePixels >= 40) ||
+      (edgePixels >= 100 && avgBrightness >= 25);
 
     if (isPersonPresent) {
       consecutiveFailuresRef.current.noFace = 0;
@@ -576,17 +535,18 @@ const WebcamProctor = ({
       return;
     }
 
-    // ── CASE 4: No Person in Frame (Absence Detected) ──
+    // ── CASE 3: No Person in Frame (Student Walked Away / Room Empty) ──
     consecutiveFailuresRef.current.noFace++;
     consecutiveFailuresRef.current.multiFace = 0;
+    setFaceBoxes([]);
 
     if (consecutiveFailuresRef.current.noFace >= 8 && !isCalibrating) {
       setProctorStatus('no-face');
       setStatusMessage('⚠️ No Face Detected');
-      setFaceBoxes([]);
       triggerWarning('no-face-detected', 'No face detected in webcam! Please face the screen.');
     } else if (!isCalibrating && consecutiveFailuresRef.current.noFace >= 3) {
-      setStatusMessage('⚠️ Face Not Detected (Adjust Position)');
+      setProctorStatus('no-face');
+      setStatusMessage('⚠️ No Face Detected');
     }
   };
 

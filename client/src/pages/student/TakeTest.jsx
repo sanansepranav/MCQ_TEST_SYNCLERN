@@ -492,7 +492,7 @@ const ActiveTest = ({ testData }) => {
       <WebcamProctor
         isActive={!state.testSubmitted}
         onViolation={handleCameraViolation}
-        maxWarnings={3}
+        maxWarnings={6}
         requireFullscreen={true}
       />
     </div>
@@ -610,7 +610,7 @@ const TakeTest = () => {
               <li><strong>👤 Single Person Required:</strong> You must remain alone in front of the screen. Another person appearing in the camera triggers cheating warnings.</li>
               <li><strong>🖥️ Fullscreen Required:</strong> The exam runs in Fullscreen mode. Exiting fullscreen will prompt a violation alert.</li>
               <li>Do not switch tabs, minimize the window, or use keyboard shortcuts.</li>
-              <li><strong style={{ color: 'var(--accent-red)' }}>Any severe violation or 3 proctor warnings will auto-submit the exam immediately.</strong></li>
+              <li><strong style={{ color: 'var(--accent-red)' }}>Any severe violation or 6 proctor warnings will auto-submit the exam immediately.</strong></li>
             </ul>
           </div>
 
