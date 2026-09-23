@@ -291,6 +291,16 @@ const ActiveTest = ({ testData }) => {
           Online
         </div>
 
+        {/* Camera Off Indicator */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6, marginLeft: 12,
+          padding: '4px 10px', borderRadius: 9999,
+          background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)',
+          fontSize: 11, fontWeight: 600, color: 'var(--text-muted)'
+        }} className="hidden md:flex">
+          📷 Camera Off Mode
+        </div>
+
         {/* Mobile palette toggle */}
         <button onClick={() => setShowPalette(!showPalette)}
           className="lg:hidden" style={{ marginLeft: 12, padding: 8, background: 'var(--bg-hover)', borderRadius: 8, border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
@@ -536,44 +546,44 @@ const TakeTest = () => {
           <h2 style={{ fontFamily: "'Sora', sans-serif", fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}>{testData.title}</h2>
           <p style={{ fontSize: 15, color: 'var(--text-secondary)', marginBottom: 32, lineHeight: 1.6 }}>{testData.description}</p>
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 32 }}>
-            <div style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-color)', padding: 20, borderRadius: 12 }}>
-              <div>
-                <p style={{
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  color: 'var(--text-muted)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.08em',
-                  marginBottom: '4px'
-                }}>DURATION</p>
-                <p style={{
-                  fontSize: '28px',
-                  fontWeight: '800',
-                  fontFamily: 'Sora, sans-serif',
-                  color: 'var(--text-primary)'
-                }}>{durationMins}</p>
-                <p style={{
-                  fontSize: '13px',
-                  color: 'var(--text-secondary)'
-                }}>Minutes</p>
-              </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 14, marginBottom: 28 }}>
+            <div style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-color)', padding: 16, borderRadius: 12 }}>
+              <p style={{
+                fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)',
+                textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px'
+              }}>DURATION</p>
+              <p style={{
+                fontSize: '26px', fontWeight: '800', fontFamily: 'Sora, sans-serif',
+                color: 'var(--text-primary)', margin: 0
+              }}>{durationMins}</p>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>Minutes</p>
             </div>
-            <div style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-color)', padding: 20, borderRadius: 12 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Questions</span>
-              <p style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginTop: 4, fontFamily: "'Sora', sans-serif" }}>{testData.totalQuestions || testData.questions?.length}</p>
+            <div style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-color)', padding: 16, borderRadius: 12 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>QUESTIONS</span>
+              <p style={{ fontSize: 26, fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0 0', fontFamily: "'Sora', sans-serif" }}>
+                {testData.totalQuestions || testData.questions?.length}
+              </p>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>Questions</p>
+            </div>
+            <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', padding: 16, borderRadius: 12 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-green)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>PROCTOR</span>
+              <p style={{ fontSize: 18, fontWeight: 800, color: 'var(--accent-green)', margin: '6px 0 0', fontFamily: "'Sora', sans-serif" }}>
+                Camera OFF
+              </p>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>No webcam needed</p>
             </div>
           </div>
 
           <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', padding: 20, borderRadius: 12, marginBottom: 32 }}>
             <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent-red)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <HiOutlineExclamationTriangle size={20} /> Anti-Cheat Strict Mode
+              <HiOutlineExclamationTriangle size={20} /> Examination & Proctoring Guidelines
             </h4>
             <ul style={{ fontSize: 13, color: 'var(--text-primary)', paddingLeft: 20, margin: 0, lineHeight: 1.8 }}>
+              <li><strong>📷 Camera Off Mode:</strong> Webcam is not required and will not be turned on during this test.</li>
               <li>Do not switch tabs or minimize the window.</li>
               <li>Do not exit fullscreen mode once started.</li>
               <li>Do not use keyboard shortcuts.</li>
-              <li><strong style={{ color: 'var(--accent-red)' }}>Any violation will auto-submit the exam immediately.</strong></li>
+              <li><strong style={{ color: 'var(--accent-red)' }}>Any tab switch violation will auto-submit the exam immediately.</strong></li>
             </ul>
           </div>
 

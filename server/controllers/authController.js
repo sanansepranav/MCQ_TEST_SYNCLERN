@@ -121,98 +121,53 @@ exports.register = async (req, res) => {
       rollNumber,
       mobileNumber,
       collegeName,
-      branch,
-      otp
+      branch
     } = req.body;
 
-    // Validate all fields
-    if (!name || !email || !password || 
-        !rollNumber || !mobileNumber || 
-        !collegeName || !branch || !otp) {
-      return res.status(400).json({
-        success: false,
-        message: 'All fields including OTP are required'
-      });
+    // Validate essential fields
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'Full name is required' });
+    }
+    if (!rollNumber || !rollNumber.trim()) {
+      return res.status(400).json({ success: false, message: 'Roll number is required' });
+    }
+    if (!password || password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
     }
 
-    // Check if already registered
-    const existing = await User.findOne({ 
-      email: email.toLowerCase() 
-    });
+    const cleanMobile = mobileNumber ? mobileNumber.toString().replace(/\D/g, '').slice(-10) : '';
+    const studentEmail = email && email.trim() 
+      ? email.toLowerCase().trim() 
+      : (cleanMobile ? `${cleanMobile}@student.synctest.com` : `${rollNumber.trim().toLowerCase()}@student.synctest.com`);
+
+    // Check if email, roll number, or mobile number is already registered
+    const duplicateQueries = [{ email: studentEmail }];
+    if (rollNumber) duplicateQueries.push({ rollNumber: rollNumber.trim() });
+    if (cleanMobile) duplicateQueries.push({ mobileNumber: cleanMobile });
+
+    const existing = await User.findOne({ $or: duplicateQueries });
     if (existing) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email already registered'
-      });
+      if (existing.email === studentEmail) {
+        return res.status(400).json({ success: false, message: 'This email is already registered. Please login.' });
+      }
+      if (existing.rollNumber === rollNumber.trim()) {
+        return res.status(400).json({ success: false, message: 'This roll number is already registered. Please login.' });
+      }
+      if (cleanMobile && existing.mobileNumber === cleanMobile) {
+        return res.status(400).json({ success: false, message: 'This mobile number is already registered. Please login.' });
+      }
+      return res.status(400).json({ success: false, message: 'Account already exists. Please login.' });
     }
 
-    // VERIFY OTP by email or mobileNumber
-    const cleanMobile = mobileNumber ? mobileNumber.replace(/\D/g, '').slice(-10) : '';
-    const otpFindConditions = [];
-    if (email) otpFindConditions.push({ email: email.toLowerCase().trim() });
-    if (cleanMobile) otpFindConditions.push({ mobileNumber: cleanMobile });
-
-    const otpRecord = await OTP.findOne({
-      $or: otpFindConditions,
-      verified: false
-    });
-
-    if (!otpRecord) {
-      return res.status(400).json({
-        success: false,
-        message: 'OTP not found. Please request a new OTP.'
-      });
-    }
-
-    // Check expiry
-    if (new Date() > otpRecord.expiresAt) {
-      await OTP.deleteOne({ 
-        _id: otpRecord._id 
-      });
-      return res.status(400).json({
-        success: false,
-        message: 'OTP has expired. Please request a new OTP.'
-      });
-    }
-
-    // Check max attempts (max 5)
-    if (otpRecord.attempts >= 5) {
-      await OTP.deleteOne({ 
-        _id: otpRecord._id 
-      });
-      return res.status(400).json({
-        success: false,
-        message: 'Too many wrong attempts. Please request a new OTP.'
-      });
-    }
-
-    // Verify OTP value
-    if (otpRecord.otp !== otp.toString().trim()) {
-      // Increment attempts
-      await OTP.updateOne(
-        { _id: otpRecord._id },
-        { $inc: { attempts: 1 } }
-      );
-      
-      const remaining = 5 - (otpRecord.attempts + 1);
-      return res.status(400).json({
-        success: false,
-        message: `Invalid OTP. ${remaining} attempts remaining.`
-      });
-    }
-
-    // OTP is valid — mark as verified
-    await OTP.deleteOne({ _id: otpRecord._id });
-
-    // Create user account
+    // Create user account directly without OTP verification
     const user = await User.create({
       name: name.trim(),
-      email: email.toLowerCase(),
+      email: studentEmail,
       password,
       rollNumber: rollNumber.trim(),
-      mobileNumber: mobileNumber.trim(),
-      collegeName: collegeName.trim(),
-      branch,
+      mobileNumber: cleanMobile || (mobileNumber ? mobileNumber.trim() : ''),
+      collegeName: collegeName ? collegeName.trim() : '',
+      branch: branch || 'Computer Engineering',
       role: 'student',
       isActive: true
     });
@@ -237,7 +192,7 @@ exports.register = async (req, res) => {
     console.error('Register error:', error);
     return res.status(500).json({
       success: false,
-      message: 'Registration failed. Please try again.'
+      message: error.message || 'Registration failed. Please try again.'
     });
   }
 };

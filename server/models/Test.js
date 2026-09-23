@@ -97,6 +97,7 @@ const testSchema = new mongoose.Schema(
       showResults: { type: Boolean, default: true },
       allowReview: { type: Boolean, default: true },
       autoSubmit: { type: Boolean, default: true },
+      requireCamera: { type: Boolean, default: false },
     },
     tags: [{ type: String }],
   },
