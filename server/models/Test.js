@@ -79,7 +79,7 @@ const testSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ['draft', 'published', 'active', 'completed', 'archived'],
-      default: 'draft',
+      default: 'published',
     },
     accessCode: {
       type: String,

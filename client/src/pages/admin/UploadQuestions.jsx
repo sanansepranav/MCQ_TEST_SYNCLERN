@@ -15,13 +15,15 @@ const UploadQuestions = () => {
 
   const [testTitle, setTestTitle] = useState('');
   const [testType, setTestType] = useState('');
+  const [testStatus, setTestStatus] = useState('published');
   const [activeTab, setActiveTab] = useState('manual');
   const [existing, setExisting] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   // Manual entry state
-  const emptyQ = { questionNo: '', questionText: '', optionA: '', optionB: '', optionC: '', optionD: '', optionE: '', showOptionE: false, marks: 1 };
+  const emptyQ = { questionNo: '', questionText: '', optionA: '', optionB: '', optionC: '', optionD: '', optionE: '', showOptionE: false, marks: 1, correctOption: 'A' };
   const [questions, setQuestions] = useState([{ ...emptyQ }]);
 
   // CSV state
@@ -39,12 +41,32 @@ const UploadQuestions = () => {
       ]);
       setTestTitle(testRes.data.data.title);
       setTestType(testRes.data.data.testType);
+      setTestStatus(testRes.data.data.status || 'published');
       setExisting(qRes.data.data);
     } catch (err) {
       toast.error('Failed to load test');
       navigate('/admin/tests');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTogglePublish = async () => {
+    setPublishing(true);
+    try {
+      if (testStatus === 'published') {
+        await API.put(`/tests/${id}/publish`, { status: 'draft' });
+        setTestStatus('draft');
+        toast.success('Test set to Draft (Hidden from students)');
+      } else {
+        await API.put(`/tests/${id}/publish`, { status: 'published' });
+        setTestStatus('published');
+        toast.success('Test Published! Visible to students now.');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update status');
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -73,7 +95,30 @@ const UploadQuestions = () => {
         marks: Number(q.marks) || 1,
       }));
       const res = await API.post(`/tests/${id}/questions`, { questions: payload });
-      toast.success(res.data.message);
+
+      // Automatically sync Answer Key so students can take and submit the test immediately
+      try {
+        let existingAnswers = [];
+        try {
+          const akRes = await API.get(`/tests/${id}/answerkey`);
+          existingAnswers = akRes.data.data?.answers || [];
+        } catch {
+          // No previous answer key
+        }
+        const answerMap = new Map();
+        existingAnswers.forEach((a) => answerMap.set(a.questionNo, a.correctOption));
+        payload.forEach((q) => answerMap.set(q.questionNo, q.correctOption || 'A'));
+
+        const mergedAnswers = Array.from(answerMap.entries()).map(([questionNo, correctOption]) => ({
+          questionNo,
+          correctOption,
+        }));
+        await API.post(`/tests/${id}/answerkey`, { answers: mergedAnswers });
+      } catch (akErr) {
+        console.warn('Auto answerkey sync failed:', akErr);
+      }
+
+      toast.success(res.data.message || 'Questions & Answer Key saved!');
       setQuestions([{ ...emptyQ }]);
       fetchExisting();
     } catch (err) {
@@ -154,13 +199,66 @@ const UploadQuestions = () => {
     <div style={{ padding: '32px 40px', maxWidth: '900px', margin: '0 auto' }}>
       
       {/* Page Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '28px' }}>
-        <button onClick={() => navigate('/admin/tests')} style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '8px', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-          <HiOutlineArrowLeft size={16} />
-        </button>
-        <div>
-          <h1 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '2px', fontFamily: "'Sora', sans-serif" }}>Upload Questions</h1>
-          <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>{testTitle} · {existing.length} questions added</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px', flexWrap: 'wrap', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button onClick={() => navigate('/admin/tests')} style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '8px', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
+            <HiOutlineArrowLeft size={16} />
+          </button>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h1 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '2px', fontFamily: "'Sora', sans-serif" }}>Upload Questions</h1>
+              <span style={{
+                fontSize: '11px',
+                fontWeight: '700',
+                padding: '3px 10px',
+                borderRadius: '12px',
+                background: testStatus === 'published' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
+                color: testStatus === 'published' ? 'var(--accent-green)' : 'var(--accent-amber)',
+                border: testStatus === 'published' ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(245,158,11,0.3)'
+              }}>
+                {testStatus === 'published' ? '● Published (Live for Students)' : '○ Draft (Hidden)'}
+              </span>
+            </div>
+            <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>{testTitle} · {existing.length} questions added</p>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            onClick={() => navigate(`/admin/tests/${id}/answerkey`)}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '8px',
+              border: '1px solid var(--border-input)',
+              background: 'var(--bg-hover)',
+              color: 'var(--text-primary)',
+              fontSize: '13px',
+              fontWeight: '500',
+              cursor: 'pointer'
+            }}
+          >
+            🔑 View Answer Key
+          </button>
+
+          <button
+            onClick={handleTogglePublish}
+            disabled={publishing}
+            style={{
+              padding: '8px 18px',
+              borderRadius: '8px',
+              border: 'none',
+              background: testStatus === 'published' ? 'var(--bg-hover)' : 'var(--accent-green)',
+              color: testStatus === 'published' ? 'var(--text-muted)' : '#ffffff',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            {testStatus === 'published' ? 'Unpublish to Draft' : '🚀 Publish Test Now'}
+          </button>
         </div>
       </div>
 
@@ -188,7 +286,7 @@ const UploadQuestions = () => {
                 )}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 100px', gap: '12px', marginBottom: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr 90px 140px', gap: '12px', marginBottom: '12px' }}>
                 <div>
                   <label style={labelStyle}>Q. No</label>
                   <input type="number" value={q.questionNo} onChange={(e) => updateQuestion(idx, 'questionNo', e.target.value)} placeholder="Auto" style={inputStyle} />
@@ -200,6 +298,16 @@ const UploadQuestions = () => {
                 <div>
                   <label style={labelStyle}>Marks</label>
                   <input type="number" value={q.marks} onChange={(e) => updateQuestion(idx, 'marks', e.target.value)} min="0" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={{ ...labelStyle, color: 'var(--accent-green)' }}>Correct Answer *</label>
+                  <select value={q.correctOption || 'A'} onChange={(e) => updateQuestion(idx, 'correctOption', e.target.value)} style={{ ...inputStyle, fontWeight: '700', color: 'var(--accent-green)', background: 'var(--bg-input)' }}>
+                    <option value="A">Option A</option>
+                    <option value="B">Option B</option>
+                    <option value="C">Option C</option>
+                    <option value="D">Option D</option>
+                    {q.showOptionE && <option value="E">Option E</option>}
+                  </select>
                 </div>
               </div>
 

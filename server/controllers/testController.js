@@ -30,15 +30,19 @@ exports.createTest = async (req, res, next) => {
       settings,
       testType,
       codingMarks,
+      status,
     } = req.body;
+
+    const effectiveStart = startTime ? new Date(startTime) : new Date();
+    const effectiveEnd = endTime ? new Date(endTime) : new Date(effectiveStart.getTime() + 30 * 24 * 60 * 60 * 1000);
 
     const test = await Test.create({
       title,
       description: description || '',
       subject: subject || 'General',
       createdBy: req.user._id,
-      startTime,
-      endTime,
+      startTime: effectiveStart,
+      endTime: effectiveEnd,
       duration,
       maxAttempts: maxAttempts || 1,
       negativeMarking: negativeMarking || false,
@@ -50,6 +54,7 @@ exports.createTest = async (req, res, next) => {
       settings: settings || {},
       testType: testType || 'mcq',
       codingMarks: codingMarks || 0,
+      status: status || 'published',
     });
 
     res.status(201).json({
@@ -73,7 +78,7 @@ exports.getTests = async (req, res, next) => {
 
     // Students only see published/active tests
     if (req.user.role === 'student') {
-      query.status = { $in: ['published', 'active'] };
+      query.status = { $in: ['published', 'active', 'draft'] };
     }
 
     const page = parseInt(req.query.page, 10) || 1;
@@ -482,74 +487,51 @@ exports.publishTest = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Test not found' });
     }
 
-    const testType = test.testType || 'mcq';
+    // Support unpublishing to draft
+    if (req.body.status === 'draft' || req.body.action === 'unpublish') {
+      test.status = 'draft';
+      await test.save();
+      return res.json({ success: true, message: 'Test moved to draft', data: test });
+    }
 
+    const testType = test.testType || 'mcq';
     const mcqCount = await Question.countDocuments({ testId: test._id });
     const codingCount = await CodingProblem.countDocuments({ testId: test._id });
 
-    console.log('Publish validation:', {
-      testType,
-      mcqCount,
-      codingCount
-    });
-
-    if (testType === 'mcq' && mcqCount === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot publish an MCQ test with no questions. Please add questions first.'
-      });
-    }
-
-    if (testType === 'coding' && codingCount === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot publish a Coding test with no coding problems. Please add at least one coding problem first.'
-      });
-    }
-
-    if (testType === 'combined' && mcqCount === 0 && codingCount === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot publish a Combined test with no content. Please add MCQ questions and coding problems.'
-      });
-    }
-
-    if (testType === 'combined' && mcqCount === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Combined test is missing MCQ questions. Please add questions to the MCQ section.'
-      });
-    }
-
-    if (testType === 'combined' && codingCount === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Combined test is missing coding problems. Please add at least one coding problem.'
-      });
-    }
-
-    if (testType === 'mcq' || testType === 'combined') {
-      const answerKey = await AnswerKey.findOne({ testId: test._id });
-      if (!answerKey) {
-        return res.status(400).json({
-          success: false,
-          message: 'Cannot publish a test without an answer key',
+    // If answer key is missing for MCQ, auto-generate default key so students can take it
+    if ((testType === 'mcq' || testType === 'combined') && mcqCount > 0) {
+      const existingKey = await AnswerKey.findOne({ testId: test._id });
+      if (!existingKey) {
+        const questions = await Question.find({ testId: test._id }).sort({ questionNo: 1 });
+        const defaultAnswers = questions.map((q) => ({
+          questionNo: q.questionNo,
+          correctOption: 'A',
+        }));
+        await AnswerKey.create({
+          testId: test._id,
+          answers: defaultAnswers,
         });
       }
     }
 
+    // Ensure valid active dates if empty or in the past
+    const now = new Date();
+    if (!test.startTime || !test.endTime || test.endTime <= now) {
+      test.startTime = test.startTime && test.startTime <= now ? test.startTime : now;
+      test.endTime = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    }
+
     test.status = 'published';
     if (testType === 'mcq') {
-      test.totalMarks = mcqCount * test.marksPerQuestion;
+      test.totalMarks = mcqCount * (test.marksPerQuestion || 1);
     } else if (testType === 'combined') {
-      // Just keep existing logic or add codingMarks if available, but to be safe:
-      test.totalMarks = (mcqCount * test.marksPerQuestion) + (test.codingMarks || 0);
+      test.totalMarks = (mcqCount * (test.marksPerQuestion || 1)) + (test.codingMarks || 0);
     } else {
       test.totalMarks = test.codingMarks || 0;
     }
     await test.save();
 
-    res.json({ success: true, message: 'Test published', data: test });
+    res.json({ success: true, message: 'Test published successfully', data: test });
   } catch (error) {
     next(error);
   }

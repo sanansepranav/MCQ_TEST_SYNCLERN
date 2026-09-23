@@ -55,6 +55,18 @@ const ManageTests = () => {
     }
   };
 
+  const handleToggleStatus = async (test) => {
+    try {
+      const isDraft = test.status === 'draft';
+      const newStatus = isDraft ? 'published' : 'draft';
+      await API.put(`/tests/${test._id}/publish`, { status: newStatus });
+      toast.success(isDraft ? `"${test.title}" published! Visible to students.` : `"${test.title}" set to Draft.`);
+      setTests((prev) => prev.map((t) => t._id === test._id ? { ...t, status: newStatus } : t));
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update status');
+    }
+  };
+
   const getTestStatus = (test) => {
     const now = new Date();
     const start = test.startTime ? new Date(test.startTime) : null;
@@ -264,18 +276,29 @@ const ManageTests = () => {
                         {test.hasAnswerKey && <span style={{ marginLeft: '4px', color: 'var(--accent-green)', fontSize: '12px' }}>✓</span>}
                       </td>
                       <td style={{ padding: '16px 20px', fontSize: '14px', color: 'var(--text-primary)', textAlign: 'center' }}>
-                        <span style={{
-                          background: status.bg,
-                          color: status.color,
-                          border: status.border,
-                          borderRadius: '20px',
-                          padding: '3px 12px',
-                          fontSize: '12px',
-                          fontWeight: '500',
-                          display: 'inline-block'
-                        }}>
+                        <button
+                          onClick={() => handleToggleStatus(test)}
+                          title={test.status === 'draft' ? 'Click to Publish test (make visible to students)' : 'Click to unpublish / move to draft'}
+                          style={{
+                            background: status.bg,
+                            color: status.color,
+                            border: status.border,
+                            borderRadius: '20px',
+                            padding: '4px 14px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s'
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.8'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+                        >
+                          <span style={{ fontSize: '10px' }}>{test.status === 'draft' ? '○' : '●'}</span>
                           {status.label}
-                        </span>
+                        </button>
                       </td>
                       <td style={{ padding: '16px 20px', fontSize: '14px', color: 'var(--text-primary)', textAlign: 'right' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>

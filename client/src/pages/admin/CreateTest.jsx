@@ -8,6 +8,17 @@ import {
   HiOutlineArrowLeft,
 } from 'react-icons/hi2';
 
+// Helper for local datetime string
+const toLocalDateTimeInput = (d) => {
+  const date = d || new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 // Convert local datetime input to UTC ISO string
 const localToUTC = (localDateTimeStr) => {
   if (!localDateTimeStr) return null;
@@ -24,13 +35,14 @@ const CreateTest = () => {
     title: '',
     description: '',
     subject: '',
-    startTime: '',
-    endTime: '',
+    startTime: toLocalDateTimeInput(new Date()),
+    endTime: toLocalDateTimeInput(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
     duration: 60,
     maxAttempts: 1,
     negativeMarking: false,
     marksPerQuestion: 1,
     negativeMarks: 0.25,
+    status: 'published',
   });
 
   const handleChange = (e) => {
@@ -57,6 +69,7 @@ const CreateTest = () => {
         startTime: localToUTC(form.startTime) || undefined,
         endTime: localToUTC(form.endTime) || undefined,
         testType: testType,
+        status: form.status || 'published',
       };
       const res = await API.post('/tests', payload);
       toast.success('Test created successfully!');
@@ -207,6 +220,66 @@ const CreateTest = () => {
           <input id="ct-subject" name="subject" value={form.subject} onChange={handleChange}
             style={inputStyle}
             placeholder="e.g. Computer Science" />
+        </div>
+
+        {/* Status & Visibility */}
+        <div style={{ marginBottom: '20px' }}>
+          <label style={labelStyle}>Initial Visibility & Status</label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div
+              onClick={() => setForm(p => ({ ...p, status: 'published' }))}
+              style={{
+                padding: '14px 16px',
+                borderRadius: '10px',
+                border: form.status === 'published' ? '2px solid var(--accent-green)' : '1px solid var(--border-color)',
+                background: form.status === 'published' ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-hover)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px'
+              }}
+            >
+              <div style={{
+                width: '12px', height: '12px', borderRadius: '50%',
+                background: form.status === 'published' ? 'var(--accent-green)' : 'var(--border-input)'
+              }} />
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: '600', color: form.status === 'published' ? 'var(--accent-green)' : 'var(--text-primary)' }}>
+                  Published (Live)
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  Visible to students immediately
+                </div>
+              </div>
+            </div>
+
+            <div
+              onClick={() => setForm(p => ({ ...p, status: 'draft' }))}
+              style={{
+                padding: '14px 16px',
+                borderRadius: '10px',
+                border: form.status === 'draft' ? '2px solid var(--accent-amber)' : '1px solid var(--border-color)',
+                background: form.status === 'draft' ? 'rgba(245, 158, 11, 0.08)' : 'var(--bg-hover)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px'
+              }}
+            >
+              <div style={{
+                width: '12px', height: '12px', borderRadius: '50%',
+                background: form.status === 'draft' ? 'var(--accent-amber)' : 'var(--border-input)'
+              }} />
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: '600', color: form.status === 'draft' ? 'var(--accent-amber)' : 'var(--text-primary)' }}>
+                  Draft (Hidden)
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  Save privately, publish later
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '20px', marginTop: '20px' }}>
