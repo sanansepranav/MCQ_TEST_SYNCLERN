@@ -5,6 +5,7 @@ import API from '../../services/api';
 import toast from 'react-hot-toast';
 import useTimer from '../../hooks/useTimer';
 import useProctor from '../../hooks/useProctor';
+import WebcamProctor from '../../components/WebcamProctor';
 import {
   HiOutlineChevronLeft,
   HiOutlineChevronRight,
@@ -194,6 +195,23 @@ const ActiveTest = ({ testData }) => {
     autoSubmit(violationType);
   }, []);
 
+  // Camera proctoring violation handler (logs strikes, triggers auto-submit on cheating)
+  const handleCameraViolation = useCallback((violationType, description) => {
+    console.log('CAMERA VIOLATION:', violationType, description);
+    violationsRef.current = [
+      ...violationsRef.current,
+      {
+        type: violationType,
+        description: description || '',
+        timestamp: new Date().toISOString(),
+      },
+    ];
+
+    if (violationType === 'camera-cheating-detected') {
+      autoSubmit('camera-cheating-detected');
+    }
+  }, []);
+
   // STEP 6: handleTimerExpire
   const handleTimerExpire = useCallback(() => {
     console.log('TIMER EXPIRED');
@@ -291,14 +309,15 @@ const ActiveTest = ({ testData }) => {
           Online
         </div>
 
-        {/* Camera Off Indicator */}
+        {/* AI Camera Proctor Indicator */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 6, marginLeft: 12,
-          padding: '4px 10px', borderRadius: 9999,
-          background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-color)',
-          fontSize: 11, fontWeight: 600, color: 'var(--text-muted)'
+          padding: '4px 12px', borderRadius: 9999,
+          background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)',
+          fontSize: 11, fontWeight: 700, color: 'var(--accent-green)'
         }} className="hidden md:flex">
-          📷 Camera Off Mode
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-green)' }} />
+          📷 AI Camera Proctor Active
         </div>
 
         {/* Mobile palette toggle */}
@@ -468,6 +487,14 @@ const ActiveTest = ({ testData }) => {
           <span className="hidden sm:inline">Next</span> <HiOutlineChevronRight size={16} />
         </button>
       </footer>
+
+      {/* AI Webcam Proctoring Monitor & Alerts (Active strictly during test, stops on submit) */}
+      <WebcamProctor
+        isActive={!state.testSubmitted}
+        onViolation={handleCameraViolation}
+        maxWarnings={3}
+        requireFullscreen={true}
+      />
     </div>
   );
 };
@@ -568,9 +595,9 @@ const TakeTest = () => {
             <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', padding: 16, borderRadius: 12 }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-green)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>PROCTOR</span>
               <p style={{ fontSize: 18, fontWeight: 800, color: 'var(--accent-green)', margin: '6px 0 0', fontFamily: "'Sora', sans-serif" }}>
-                Camera OFF
+                AI Webcam ON
               </p>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>No webcam needed</p>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>Active only during exam</p>
             </div>
           </div>
 
@@ -579,11 +606,11 @@ const TakeTest = () => {
               <HiOutlineExclamationTriangle size={20} /> Examination & Proctoring Guidelines
             </h4>
             <ul style={{ fontSize: 13, color: 'var(--text-primary)', paddingLeft: 20, margin: 0, lineHeight: 1.8 }}>
-              <li><strong>📷 Camera Off Mode:</strong> Webcam is not required and will not be turned on during this test.</li>
-              <li>Do not switch tabs or minimize the window.</li>
-              <li>Do not exit fullscreen mode once started.</li>
-              <li>Do not use keyboard shortcuts.</li>
-              <li><strong style={{ color: 'var(--accent-red)' }}>Any tab switch violation will auto-submit the exam immediately.</strong></li>
+              <li><strong>📷 AI Webcam Proctoring:</strong> Camera access activates when you click Begin Exam and automatically turns off when you submit.</li>
+              <li><strong>👤 Single Person Required:</strong> You must remain alone in front of the screen. Another person appearing in the camera triggers cheating warnings.</li>
+              <li><strong>🖥️ Fullscreen Required:</strong> The exam runs in Fullscreen mode. Exiting fullscreen will prompt a violation alert.</li>
+              <li>Do not switch tabs, minimize the window, or use keyboard shortcuts.</li>
+              <li><strong style={{ color: 'var(--accent-red)' }}>Any severe violation or 3 proctor warnings will auto-submit the exam immediately.</strong></li>
             </ul>
           </div>
 
