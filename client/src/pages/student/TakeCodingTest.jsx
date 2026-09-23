@@ -8,6 +8,7 @@ import TestCasePanel from '../../components/TestCasePanel';
 import useProctor from '../../hooks/useProctor';
 import useTimer from '../../hooks/useTimer';
 import WebcamProctor from '../../components/WebcamProctor';
+import SubmitNotification from '../../components/SubmitNotification';
 import { useRef } from 'react';
 import {
   HiOutlinePlay,
@@ -39,6 +40,7 @@ const TakeCodingTest = () => {
   const [testData, setTestData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeProblem, setActiveProblem] = useState(0);
+  const [submitModal, setSubmitModal] = useState(null);
 
   const [testStarted, setTestStarted] = useState(false);
   const autoSubmitCalledRef = useRef(false);
@@ -226,18 +228,23 @@ const TakeCodingTest = () => {
               setSubmitResults(null);
               setActivePanel('output');
             } else {
-              toast.success(
-                fromCombinedMCQ
-                  ? 'Coding submitted! Redirecting to Combined Result...'
-                  : 'Coding submitted! Redirecting to Results...',
-                { duration: 2000 }
-              );
+              setSubmitModal({
+                isOpen: true,
+                type: 'success',
+                title: 'Coding Exam Submitted!',
+                message: fromCombinedMCQ
+                  ? 'Coding section submitted successfully. Generating combined scorecard...'
+                  : 'Coding exam submitted successfully. Generating scorecard...',
+                redirectText: 'Redirecting to scorecard...',
+              });
               
-              if (fromCombinedMCQ) {
-                navigate(`/student/combined-result/${testId}`);
-              } else {
-                navigate(`/student/coding-results/${testId}`);
-              }
+              setTimeout(() => {
+                if (fromCombinedMCQ) {
+                  navigate(`/student/combined-result/${testId}`);
+                } else {
+                  navigate(`/student/coding-results/${testId}`);
+                }
+              }, 2000);
             }
           }, 2000);
         }
@@ -260,6 +267,28 @@ const TakeCodingTest = () => {
   const autoSubmitCoding = async (reason) => {
     if (autoSubmitCalledRef.current) return;
     autoSubmitCalledRef.current = true;
+
+    // Show centered submit notification in middle of screen
+    if (reason === 'timerExpired') {
+      setSubmitModal({
+        isOpen: true,
+        type: 'timeout',
+        title: "Time's Up!",
+        message: 'Coding exam time has expired. Submitting code automatically...',
+        redirectText: 'Redirecting to scorecard...',
+      });
+    } else {
+      setSubmitModal({
+        isOpen: true,
+        type: 'violation',
+        title: 'Exam Auto-Submitted',
+        message:
+          reason === 'camera-cheating-detected'
+            ? 'Exam auto-submitted due to proctoring violation warnings.'
+            : 'Exam auto-submitted due to proctoring violation.',
+        redirectText: 'Redirecting to scorecard...',
+      });
+    }
 
     console.log('[autoSubmit] Called:', {
       reason,
@@ -308,6 +337,9 @@ const TakeCodingTest = () => {
       );
 
       console.log('[autoSubmit] Success:', res.data);
+
+      // Allow student to clearly see the centered middle notification
+      await new Promise((resolve) => setTimeout(resolve, 1800));
 
       if (fromCombinedMCQ && testId) {
         navigate(`/student/combined-result/${testId}`);
@@ -795,6 +827,9 @@ const TakeCodingTest = () => {
         maxWarnings={6}
         requireFullscreen={true}
       />
+
+      {/* Centered Submit Notification (Middle of screen) */}
+      <SubmitNotification {...submitModal} />
     </div>
   );
 };

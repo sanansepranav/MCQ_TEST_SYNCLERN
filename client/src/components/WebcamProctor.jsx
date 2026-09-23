@@ -630,9 +630,9 @@ const WebcamProctor = ({
         <div
           style={{
             position: 'fixed',
-            top: '70px',
+            top: '50%',
             left: '50%',
-            transform: 'translateX(-50%)',
+            transform: 'translate(-50%, -50%)',
             zIndex: 9999999,
             maxWidth: '540px',
             width: '90%',

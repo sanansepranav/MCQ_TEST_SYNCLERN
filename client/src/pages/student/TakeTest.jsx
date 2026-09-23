@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import useTimer from '../../hooks/useTimer';
 import useProctor from '../../hooks/useProctor';
 import WebcamProctor from '../../components/WebcamProctor';
+import SubmitNotification from '../../components/SubmitNotification';
 import {
   HiOutlineChevronLeft,
   HiOutlineChevronRight,
@@ -49,6 +50,7 @@ const ActiveTest = ({ testData }) => {
   const navigate = useNavigate();
   
   const [showPalette, setShowPalette] = useState(false);
+  const [submitModal, setSubmitModal] = useState(null);
   const [state, dispatch] = useReducer(testReducer, initialState);
   
   const isCombinedTest = testData?.testType === 'combined';
@@ -99,6 +101,38 @@ const ActiveTest = ({ testData }) => {
     if (autoSubmitCalledRef.current) return;
     autoSubmitCalledRef.current = true;
 
+    // Show prominent centered submit notification in middle of screen
+    if (reason === 'manual') {
+      setSubmitModal({
+        isOpen: true,
+        type: 'success',
+        title: 'Exam Submitted Successfully!',
+        message: isCombinedTest
+          ? 'MCQ Section submitted. Transferring to Coding Section...'
+          : 'Your exam responses have been recorded successfully.',
+        redirectText: isCombinedTest ? 'Loading Coding Section...' : 'Redirecting to scorecard...',
+      });
+    } else if (reason === 'timerExpired') {
+      setSubmitModal({
+        isOpen: true,
+        type: 'timeout',
+        title: "Time's Up!",
+        message: 'Exam duration has expired. Responses auto-submitted.',
+        redirectText: 'Redirecting to scorecard...',
+      });
+    } else {
+      setSubmitModal({
+        isOpen: true,
+        type: 'violation',
+        title: 'Exam Auto-Submitted',
+        message:
+          reason === 'camera-cheating-detected'
+            ? 'Exam was auto-submitted due to proctoring violation warnings.'
+            : 'Exam was auto-submitted due to proctoring violation.',
+        redirectText: 'Redirecting to scorecard...',
+      });
+    }
+
     const currentTestId = testIdRef.current || id;
     console.log('Submitting testId:', currentTestId);
 
@@ -142,12 +176,9 @@ const ActiveTest = ({ testData }) => {
       console.log('Result ID:', resultId);
       dispatch({ type: 'SUBMITTED' });
       sessionStorage.removeItem(`dms_test_${id}`);
-      
-      if (reason !== 'manual') {
-        toast.error('Test auto-submitted due to violation', { duration: 4000 });
-      } else {
-        toast.success('Test submitted successfully!', { duration: 4000 });
-      }
+
+      // Allow student to clearly see the centered middle notification
+      await new Promise((resolve) => setTimeout(resolve, 1800));
 
       if (resultId) {
         if (isCombinedTest && reason === 'manual') {
@@ -495,6 +526,9 @@ const ActiveTest = ({ testData }) => {
         maxWarnings={6}
         requireFullscreen={true}
       />
+
+      {/* Centered Submit Notification (Middle of screen) */}
+      <SubmitNotification {...submitModal} />
     </div>
   );
 };
