@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { validationResult } = require('express-validator');
+const passport = require('passport');
 const User = require('../models/User');
 const { generateToken } = require('../utils/token');
 const { sendEmail, sendOTPEmail } = require('../utils/email');
@@ -499,4 +500,34 @@ exports.resetPassword = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
+/**
+ * @desc    Google Auth (initiates Google OAuth flow)
+ * @route   GET /api/auth/google
+ * @access  Public
+ */
+exports.googleAuth = passport.authenticate('google', { scope: ['profile', 'email'], session: false });
+
+/**
+ * @desc    Google Auth Callback
+ * @route   GET /api/auth/google/callback
+ * @access  Public
+ */
+exports.googleAuthCallback = (req, res, next) => {
+  passport.authenticate('google', { session: false }, (err, user, info) => {
+    if (err) {
+      console.error('Google Auth Error:', err);
+      return res.redirect(`${config.clientUrl}/login?error=auth_failed`);
+    }
+    if (!user) {
+      return res.redirect(`${config.clientUrl}/login?error=auth_failed`);
+    }
+    
+    // Generate token
+    const token = generateToken(user._id);
+    
+    // Redirect back to client with token
+    res.redirect(`${config.clientUrl}/login?token=${token}`);
+  })(req, res, next);
 };

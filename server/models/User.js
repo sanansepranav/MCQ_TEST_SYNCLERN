@@ -19,9 +19,14 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
+      required: function() { return !this.googleId; },
       minlength: [6, 'Password must be at least 6 characters'],
       select: false, // Never return password by default
+    },
+    googleId: {
+      type: String,
+      sparse: true,
+      unique: true
     },
     role: {
       type: String,
@@ -84,7 +89,7 @@ userSchema.index({ department: 1 });
 
 // Validate rollNumber is required for students
 userSchema.pre('validate', function (next) {
-  if (this.role === 'student' && !this.rollNumber) {
+  if (this.role === 'student' && !this.rollNumber && !this.googleId) {
     this.invalidate('rollNumber', 'Roll number is required for students');
   }
   next();
