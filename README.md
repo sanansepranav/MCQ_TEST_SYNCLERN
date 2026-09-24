@@ -298,6 +298,7 @@ The app will be available at: **http://localhost:5173**
    - **Build Command:** `npm install`
    - **Start Command:** `node server.js`
 5. Add environment variables (from `.env.example`)
+   > ⚠️ **CRITICAL:** You MUST set `MONGO_URI` in Render. If it is missing, the server will crash on startup because it cannot connect to the database.
 6. Set `CLIENT_URL` to your Vercel frontend URL
 
 ### Frontend → Vercel
