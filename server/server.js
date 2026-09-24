@@ -142,10 +142,6 @@ if (config.nodeEnv === 'development') {
   app.use(morgan('dev'));
 }
 
-// Passport middleware
-require('./config/passport');
-app.use(require('passport').initialize());
-
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, config.upload.dir);
 if (!fs.existsSync(uploadsDir)) {

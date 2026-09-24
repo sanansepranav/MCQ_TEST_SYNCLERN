@@ -11,12 +11,6 @@ router.post('/send-otp', authController.sendOTP);
 // @route   POST /api/auth/register (student only — admin cannot register publicly)
 router.post('/register', authController.register);
 
-// @route   GET /api/auth/google
-router.get('/google', authController.googleAuth);
-
-// @route   GET /api/auth/google/callback
-router.get('/google/callback', authController.googleAuthCallback);
-
 // @route   POST /api/auth/login (both student + admin, role sent in body)
 router.post(
   '/login',
