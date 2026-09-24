@@ -90,9 +90,17 @@ app.use(
         'http://localhost:5173',
         'http://localhost:3000',
       ].filter(Boolean);
+      
+      // Allow exact matches
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
+      
+      // Allow ALL Vercel preview URLs automatically
+      if (origin.endsWith('.vercel.app')) {
+        return callback(null, true);
+      }
+      
       return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
