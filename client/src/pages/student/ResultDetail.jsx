@@ -104,76 +104,58 @@ const ResultDetail = () => {
       <ResultSummary result={result} />
 
       {/* Answer Comparison */}
-      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '16px', overflow: 'hidden', marginTop: '16px', boxShadow: 'var(--shadow-sm)' }}>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)' }}>
-          <h3 style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)' }}>Answer Comparison</h3>
-        </div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: 'var(--bg-hover)', borderBottom: '1px solid var(--border-color)' }}>
-                <th style={{ padding: '12px 20px', fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center', width: '60px' }}>#</th>
-                <th style={{ padding: '12px 20px', fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'left' }}>Question</th>
-                <th style={{ padding: '12px 20px', fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center', width: '100px' }}>Yours</th>
-                <th style={{ padding: '12px 20px', fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center', width: '100px' }}>Correct</th>
-                <th style={{ padding: '12px 20px', fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center', width: '80px' }}>Result</th>
-              </tr>
-            </thead>
-            <tbody>
-              {comparison.map((q) => {
-                const isCorrect = q.isCorrect;
-                const isUnattempted = q.isUnattempted;
-                
-                let rowBg = 'transparent';
-                let rowBorder = 'none';
-                
-                if (isUnattempted) {
-                  rowBg = 'rgba(234,179,8,0.05)';
-                  rowBorder = '3px solid #eab308';
-                } else if (isCorrect) {
-                  rowBg = 'rgba(16,185,129,0.05)';
-                  rowBorder = '3px solid #10b981';
-                } else {
-                  rowBg = 'rgba(239,68,68,0.05)';
-                  rowBorder = '3px solid #ef4444';
-                }
+      <div style={{ marginTop: '32px' }}>
+        <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '16px' }}>Answer Review</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {comparison.map((q) => {
+            const isCorrect = q.isCorrect;
+            const isUnattempted = q.isUnattempted;
+            
+            let cardBg = 'var(--bg-surface)';
+            let leftBorder = '4px solid var(--border-color)';
+            let icon = null;
+            
+            if (isUnattempted) {
+              cardBg = 'var(--accent-amber-bg)';
+              leftBorder = '4px solid var(--accent-amber)';
+              icon = <HiOutlineMinusCircle size={24} color="var(--accent-amber)" />;
+            } else if (isCorrect) {
+              cardBg = 'var(--accent-green-bg)';
+              leftBorder = '4px solid var(--accent-green)';
+              icon = <HiOutlineCheckCircle size={24} color="var(--accent-green)" />;
+            } else {
+              cardBg = 'var(--accent-red-bg)';
+              leftBorder = '4px solid var(--accent-red)';
+              icon = <HiOutlineXCircle size={24} color="var(--accent-red)" />;
+            }
 
-                return (
-                  <tr key={q.questionNo} style={{ background: rowBg, borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '14px 20px', textAlign: 'center', fontSize: '14px', fontWeight: '700', color: 'var(--text-secondary)', borderLeft: rowBorder }}>
-                      {q.questionNo}
-                    </td>
-                    <td style={{ padding: '14px 20px', fontSize: '14px', color: 'var(--text-primary)' }}>
-                      {q.questionText}
-                    </td>
-                    <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+            return (
+              <div key={q.questionNo} style={{ background: cardBg, borderLeft: leftBorder, borderRadius: '8px', padding: '20px', display: 'flex', gap: '16px', boxShadow: 'var(--shadow-sm)', borderTop: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+                <div style={{ flexShrink: 0 }}>
+                  {icon}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Question {q.questionNo}</p>
+                  <p style={{ fontSize: '15px', color: 'var(--text-primary)', marginBottom: '16px', fontWeight: '500' }}>{q.questionText}</p>
+                  
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
+                    <div>
+                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Your Answer:</p>
                       {q.isUnattempted ? (
-                        <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>—</span>
+                        <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-muted)' }}>Skipped</span>
                       ) : (
-                        <span style={{ display: 'inline-block', padding: '4px 10px', background: 'var(--accent-blue-bg)', color: 'var(--accent-blue)', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}>
-                          {q.studentAnswer}
-                        </span>
+                        <span style={{ fontSize: '14px', fontWeight: '600', color: isCorrect ? 'var(--accent-green)' : 'var(--accent-red)' }}>{q.studentAnswer}</span>
                       )}
-                    </td>
-                    <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                      <span style={{ display: 'inline-block', padding: '4px 10px', background: 'var(--accent-green-bg)', color: 'var(--accent-green)', borderRadius: '6px', fontSize: '13px', fontWeight: '600' }}>
-                        {q.correctAnswer}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                      {q.isUnattempted ? (
-                        <div style={{ color: 'var(--accent-amber)', display: 'flex', justifyContent: 'center' }}><HiOutlineMinusCircle size={20} /></div>
-                      ) : q.isCorrect ? (
-                        <div style={{ color: 'var(--accent-green)', display: 'flex', justifyContent: 'center' }}><HiOutlineCheckCircle size={20} /></div>
-                      ) : (
-                        <div style={{ color: 'var(--accent-red)', display: 'flex', justifyContent: 'center' }}><HiOutlineXCircle size={20} /></div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Correct Answer:</p>
+                      <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>{q.correctAnswer}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

@@ -1,19 +1,20 @@
-import { useTheme } from '../../context/ThemeContext';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from '../../services/api';
 import toast from 'react-hot-toast';
 import {
-  HiOutlineChartBarSquare,
-  HiOutlineArrowRight,
-  HiOutlineExclamationTriangle,
+  HiOutlineClipboardDocumentList,
+  HiOutlineArrowTrendingUp,
+  HiOutlineCheckCircle,
+  HiOutlineXCircle,
+  HiOutlineMagnifyingGlass
 } from 'react-icons/hi2';
 
 const MyResults = () => {
-  const { theme } = useTheme();
   const navigate = useNavigate();
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => { fetchResults(); }, []);
 
@@ -29,14 +30,21 @@ const MyResults = () => {
   };
 
   const formatDate = (d) =>
-    d ? new Date(d).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+    d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
-  const formatTime = (sec) => {
-    if (!sec) return '—';
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m}m ${s}s`;
-  };
+  // --- Statistics Calculation ---
+  const totalExams = results.length;
+  const passedExams = results.filter(r => (r.percentage || 0) >= 40).length;
+  const failedExams = results.filter(r => (r.percentage || 0) < 40).length;
+  const avgScore = totalExams > 0 
+    ? Math.round(results.reduce((acc, r) => acc + (r.percentage || 0), 0) / totalExams) 
+    : 0;
+
+  // --- Filter ---
+  const filteredResults = results.filter(r => 
+    (r.testId?.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (r.testId?.subject || '').toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (loading) {
     return (
@@ -46,146 +54,158 @@ const MyResults = () => {
           border: '3px solid var(--accent-blue-bg)', borderTopColor: 'var(--accent-blue)',
           animation: 'spin 0.8s linear infinite',
         }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* Header */}
-      <div>
-        <h1 style={{ fontFamily: "'Sora', sans-serif", fontSize: 24, fontWeight: 700, color: 'var(--text-primary)' }}>My Results</h1>
-        <p style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 4 }}>{results.length} test{results.length !== 1 ? 's' : ''} attempted</p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: '1200px', margin: '0 auto' }}>
+      
+      {/* ─── HEADER ─── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+        <div>
+          <h1 style={{ fontFamily: "var(--font-heading)", fontSize: 28, fontWeight: 700, color: 'var(--text-primary)' }}>
+            Your Results
+          </h1>
+          <p style={{ fontSize: 15, color: 'var(--text-secondary)', marginTop: 4 }}>
+            View your examination performance and detailed results.
+          </p>
+        </div>
+        <div style={{ position: 'relative', width: '280px' }}>
+          <HiOutlineMagnifyingGlass style={{ position: 'absolute', left: 12, top: 12, color: 'var(--text-muted)' }} size={18} />
+          <input
+            type="text"
+            placeholder="Search exams..."
+            className="dms-input"
+            style={{ paddingLeft: 38 }}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
       </div>
 
-      {results.length === 0 ? (
-        <div className="glass-card" style={{
-          borderRadius: 20, padding: '64px 32px', textAlign: 'center', marginTop: 8
-        }}>
-          <div style={{
-            width: 64, height: 64, background: 'rgba(59,130,246,0.1)', borderRadius: 18,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 20px', fontSize: 28, border: '1px solid rgba(59,130,246,0.2)'
-          }}>
-            📊
+      {/* ─── SUMMARY CARDS ─── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+        {/* Total Exams */}
+        <div className="stat-card" style={{ padding: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--accent-blue-bg)', color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <HiOutlineClipboardDocumentList size={24} />
           </div>
-          <h3 style={{
-            fontFamily: "'Sora', sans-serif", fontSize: 18, fontWeight: 700,
-            color: 'var(--text-primary)', marginBottom: 8
-          }}>
-            No results recorded yet
-          </h3>
-          <p style={{
-            fontSize: 14, color: 'var(--text-secondary)', marginBottom: 24, maxWidth: 360, marginInline: 'auto'
-          }}>
-            Once you complete a scheduled test or practice coding assessment, your score breakdown will appear here.
-          </p>
-          <button
-            className="dms-btn dms-btn-primary"
-            style={{ padding: '12px 28px', fontSize: 14, borderRadius: 12 }}
-            onClick={() => navigate('/student/dashboard')}
-          >
-            Browse Available Tests →
-          </button>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 2 }}>Total Exams</p>
+            <h3 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)' }}>{totalExams}</h3>
+          </div>
         </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
-          {results.map((r) => {
-            const pass = (r.percentage || 0) >= 40;
-            return (
-              <div
-                key={r._id}
-                onClick={() => navigate(`/student/results/${r._id}`)}
-                className="glass-card glass-card-hover"
-                style={{
-                  borderRadius: 20,
-                  padding: '24px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  position: 'relative'
-                }}
-              >
-                {/* Title + Badge */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <div style={{ flex: 1, minWidth: 0, paddingRight: 10 }}>
-                    <h3 style={{
-                      fontFamily: "'Sora', sans-serif", fontSize: 16, fontWeight: 700,
-                      color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', margin: 0
-                    }}>
-                      {r.testId?.title || 'Assessment'}
-                    </h3>
-                    <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, margin: 0 }}>
-                      {r.testId?.subject || 'Engineering Assessment'}
-                    </p>
-                  </div>
-                  <span style={{
-                    padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.8, flexShrink: 0,
-                    background: pass ? 'var(--accent-green-bg)' : 'var(--accent-red-bg)',
-                    color: pass ? 'var(--accent-green)' : 'var(--accent-red)',
-                    border: `1px solid ${pass ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)'}`
-                  }}>
-                    {pass ? 'PASS' : 'FAIL'}
-                  </span>
-                </div>
 
-                {/* Score */}
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 16 }}>
-                  <span style={{ fontFamily: "'Sora', sans-serif", fontSize: 32, fontWeight: 800, color: pass ? 'var(--accent-green)' : 'var(--accent-red)', letterSpacing: '-0.5px' }}>
-                    {r.percentage}%
-                  </span>
-                  <span style={{ fontSize: 14, color: 'var(--text-secondary)', fontWeight: 600 }}>
-                    Score: {r.score} / {r.totalMarks}
-                  </span>
-                </div>
-
-                {/* Meta chips */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)', marginTop: 'auto' }}>
-                  <span>📅 {formatDate(r.submittedAt)}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {r.autoSubmitted && (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--accent-red)', fontWeight: 600 }}>
-                        <HiOutlineExclamationTriangle size={13} /> Auto
-                      </span>
-                    )}
-                    <span>⏱️ {formatTime(r.timeTaken)}</span>
-                  </div>
-                </div>
-
-                {/* Footer action */}
-                <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  {r.testId?.testType === 'combined' ? (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/student/combined-result/${r.testId._id || r.testId}`);
-                      }}
-                      style={{
-                        background: 'rgba(59,130,246,0.1)',
-                        border: '1px solid rgba(59,130,246,0.25)',
-                        borderRadius: 10,
-                        padding: '6px 14px',
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: 'var(--accent-blue)',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      🎯 Combined Result
-                    </button>
-                  ) : (
-                    <div />
-                  )}
-                  <span style={{ fontSize: 13, color: 'var(--accent-blue)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
-                    View Details <HiOutlineArrowRight size={13} />
-                  </span>
-                </div>
-              </div>
-            );
-          })}
+        {/* Average Score */}
+        <div className="stat-card" style={{ padding: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--accent-blue-bg)', color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <HiOutlineArrowTrendingUp size={24} />
+          </div>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 2 }}>Average Score</p>
+            <h3 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)' }}>{avgScore}%</h3>
+          </div>
         </div>
-      )}
+
+        {/* Passed */}
+        <div className="stat-card" style={{ padding: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--accent-green-bg)', color: 'var(--accent-green)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <HiOutlineCheckCircle size={24} />
+          </div>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 2 }}>Passed</p>
+            <h3 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)' }}>{passedExams}</h3>
+          </div>
+        </div>
+
+        {/* Failed */}
+        <div className="stat-card" style={{ padding: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--accent-red-bg)', color: 'var(--accent-red)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <HiOutlineXCircle size={24} />
+          </div>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 2 }}>Failed</p>
+            <h3 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)' }}>{failedExams}</h3>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── RESULT TABLE ─── */}
+      <div className="dms-card" style={{ overflow: 'hidden' }}>
+        {results.length === 0 ? (
+          <div style={{ padding: '60px 20px', textAlign: 'center' }}>
+            <div style={{ width: 64, height: 64, margin: '0 auto 16px', background: 'var(--accent-blue-bg)', color: 'var(--accent-blue)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <HiOutlineClipboardDocumentList size={32} />
+            </div>
+            <h3 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>No results yet</h3>
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 24 }}>Your completed examinations will appear here.</p>
+            <button className="dms-btn dms-btn-primary" onClick={() => navigate('/student/dashboard')}>
+              View Available Exams
+            </button>
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr>
+                  <th style={{ padding: '16px 20px', fontSize: 13, fontWeight: 600 }}>Exam Name</th>
+                  <th style={{ padding: '16px 20px', fontSize: 13, fontWeight: 600 }}>Subject</th>
+                  <th style={{ padding: '16px 20px', fontSize: 13, fontWeight: 600 }}>Date</th>
+                  <th style={{ padding: '16px 20px', fontSize: 13, fontWeight: 600 }}>Score</th>
+                  <th style={{ padding: '16px 20px', fontSize: 13, fontWeight: 600 }}>Percentage</th>
+                  <th style={{ padding: '16px 20px', fontSize: 13, fontWeight: 600 }}>Status</th>
+                  <th style={{ padding: '16px 20px', fontSize: 13, fontWeight: 600, textAlign: 'right' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredResults.map((r) => {
+                  const pass = (r.percentage || 0) >= 40;
+                  return (
+                    <tr key={r._id} style={{ transition: 'background 0.2s' }}>
+                      <td style={{ padding: '16px 20px', fontSize: 14, fontWeight: 500 }}>
+                        {r.testId?.title || 'Assessment'}
+                      </td>
+                      <td style={{ padding: '16px 20px', fontSize: 14, color: 'var(--text-secondary)' }}>
+                        {r.testId?.subject || 'Engineering'}
+                      </td>
+                      <td style={{ padding: '16px 20px', fontSize: 14, color: 'var(--text-secondary)' }}>
+                        {formatDate(r.submittedAt)}
+                      </td>
+                      <td style={{ padding: '16px 20px', fontSize: 14, fontWeight: 500 }}>
+                        {r.score} <span style={{ color: 'var(--text-muted)' }}>/ {r.totalMarks}</span>
+                      </td>
+                      <td style={{ padding: '16px 20px', fontSize: 14, fontWeight: 600 }}>
+                        {r.percentage}%
+                      </td>
+                      <td style={{ padding: '16px 20px' }}>
+                        <span style={{
+                          padding: '4px 10px',
+                          borderRadius: 6,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          background: pass ? 'var(--accent-green-bg)' : 'var(--accent-red-bg)',
+                          color: pass ? 'var(--accent-green)' : 'var(--accent-red)',
+                        }}>
+                          {pass ? 'Passed' : 'Failed'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '16px 20px', textAlign: 'right' }}>
+                        <button
+                          className="dms-btn dms-btn-outline dms-btn-sm"
+                          onClick={() => navigate(`/student/results/${r._id}`)}
+                        >
+                          View Details
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
