@@ -29,22 +29,20 @@ const Register = () => {
   const inputStyle = (isFocused) => ({
     width: '100%',
     padding: '12px 16px',
-    background: theme === 'light' ? '#f8faff' : 'rgba(255,255,255,0.05)',
-    border: isFocused
-      ? '1.5px solid var(--accent-blue)'
-      : (theme === 'light' ? '1.5px solid #cbd5e1' : '1px solid rgba(255,255,255,0.12)'),
+    background: 'var(--bg-input)',
+    border: isFocused ? '1.5px solid var(--accent-blue)' : '1.5px solid var(--border-input)',
     borderRadius: '12px',
-    color: theme === 'light' ? '#0f172a' : '#ffffff',
+    color: 'var(--text-primary)',
     fontSize: '14px',
     outline: 'none',
     boxSizing: 'border-box',
     fontFamily: 'inherit',
     transition: 'all 0.2s ease',
-    boxShadow: isFocused ? '0 0 0 3px rgba(59, 130, 246, 0.15)' : 'none'
+    boxShadow: isFocused ? '0 0 0 3px var(--accent-blue-bg)' : 'none'
   });
 
   const labelStyle = {
-    color: theme === 'light' ? '#334155' : 'var(--text-label)',
+    color: 'var(--text-primary)',
     fontSize: '12px',
     fontWeight: '600',
     marginBottom: '6px',
@@ -291,8 +289,8 @@ const Register = () => {
                   type="button"
                   onClick={() => setShowPw(!showPw)}
                   style={{
-                    background: theme === 'light' ? '#f8faff' : 'var(--bg-hover)',
-                    border: theme === 'light' ? '1.5px solid #cbd5e1' : '1px solid var(--border-input)',
+                    background: 'var(--bg-input)',
+                    border: '1.5px solid var(--border-input)',
                     borderRadius: 10, width: 42, flexShrink: 0, cursor: 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: 'var(--text-muted)'
@@ -320,8 +318,8 @@ const Register = () => {
                   type="button"
                   onClick={() => setShowCPw(!showCPw)}
                   style={{
-                    background: theme === 'light' ? '#f8faff' : 'var(--bg-hover)',
-                    border: theme === 'light' ? '1.5px solid #cbd5e1' : '1px solid var(--border-input)',
+                    background: 'var(--bg-input)',
+                    border: '1.5px solid var(--border-input)',
                     borderRadius: 10, width: 42, flexShrink: 0, cursor: 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: 'var(--text-muted)'

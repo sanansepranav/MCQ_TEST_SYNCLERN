@@ -34,21 +34,20 @@ const AdminLogin = () => {
   const inputStyle = (focused) => ({
     width: '100%',
     padding: '13px 16px',
-    background: theme === 'light' ? '#f8faff' : 'rgba(255,255,255,0.05)',
-    border: focused 
-      ? '1.5px solid var(--accent-blue)' 
-      : (theme === 'light' ? '1.5px solid #cbd5e1' : '1px solid rgba(255,255,255,0.12)'),
+    background: 'var(--bg-input)',
+    border: focused ? '1.5px solid var(--accent-amber)' : '1.5px solid var(--border-input)',
     borderRadius: '10px',
-    color: theme === 'light' ? '#0f172a' : '#ffffff',
+    color: 'var(--text-primary)',
     fontSize: '14px',
     outline: 'none',
     boxSizing: 'border-box',
     fontFamily: 'inherit',
-    transition: 'all 0.2s ease'
+    transition: 'all 0.2s ease',
+    boxShadow: focused ? '0 0 0 3px var(--accent-amber-bg)' : 'none'
   });
 
   const labelStyle = {
-    color: theme === 'light' ? '#374151' : 'var(--text-label)',
+    color: 'var(--text-primary)',
     fontSize: '13px',
     fontWeight: '600',
     marginBottom: '8px',
@@ -96,8 +95,8 @@ const AdminLogin = () => {
                 value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
                 onFocus={() => setFPw(true)} onBlur={() => setFPw(false)} style={inputStyle(fPw)} />
               <button type="button" onClick={() => setShowPw(!showPw)} style={{
-                background: theme === 'light' ? '#f8faff' : 'var(--bg-hover)', 
-                border: theme === 'light' ? '1.5px solid #cbd5e1' : '1px solid var(--border-input)',
+                background: 'var(--bg-input)', 
+                border: '1.5px solid var(--border-input)',
                 borderRadius: 10, width: 48, flexShrink: 0, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: 'var(--text-muted)', transition: 'color 0.2s',
