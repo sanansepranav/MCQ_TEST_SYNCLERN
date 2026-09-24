@@ -1,0 +1,11 @@
+{
+  "name": "digital-microsys",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Root package.json for Render/Vercel zero-config deployments",
+  "scripts": {
+    "postinstall": "cd server && npm install && cd ../client && npm install",
+    "build": "cd client && npm run build",
+    "start": "cd server && node server.js"
+  }
+}
