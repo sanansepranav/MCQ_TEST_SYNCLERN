@@ -233,7 +233,7 @@ const DashboardLayout = () => {
         {/* Top bar */}
         <div style={{
           height: '64px',
-          background: theme === 'light' ? 'rgba(255, 255, 255, 0.85)' : 'rgba(8, 12, 20, 0.85)',
+          background: 'rgba(255, 255, 255, 0.85)',
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
           borderBottom: '1px solid var(--border-color)',

@@ -40,7 +40,7 @@ const App = () => {
   if (loading) {
     return (
       <div style={{
-        minHeight: '100vh', background: '#080c14',
+        minHeight: '100vh', background: 'var(--bg-primary)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <div style={{ textAlign: 'center' }}>
