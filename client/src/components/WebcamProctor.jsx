@@ -219,336 +219,127 @@ const WebcamProctor = ({
   );
 
   // ─────────────────────────────────────────────────────────────
-  // 4. AI Face & Person Detection Engine
+  // 4. AI Face & Person Detection Engine (TensorFlow COCO-SSD)
   // ─────────────────────────────────────────────────────────────
+  const [aiModel, setAiModel] = useState(null);
+
+  // Load the AI model on mount
   useEffect(() => {
-    if (!cameraReady || !isActive) return;
-
-    let hasNativeDetector = false;
-    let nativeDetector = null;
-
-    if ('FaceDetector' in window) {
+    let isMounted = true;
+    const loadModel = async () => {
       try {
-        nativeDetector = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 4 });
-        hasNativeDetector = true;
-        console.log('[WebcamProctor] Native FaceDetector enabled');
-      } catch (e) {
-        hasNativeDetector = false;
+        // Dynamically import tfjs and coco-ssd to prevent breaking other builds
+        const tf = await import('@tensorflow/tfjs');
+        await tf.ready();
+        const cocoSsd = await import('@tensorflow-models/coco-ssd');
+        const loadedModel = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
+        if (isMounted) {
+          setAiModel(loadedModel);
+          console.log('[WebcamProctor] COCO-SSD Model Loaded successfully');
+        }
+      } catch (err) {
+        console.error('[WebcamProctor] Failed to load AI model', err);
       }
-    }
+    };
+    loadModel();
+    return () => { isMounted = false; };
+  }, []);
 
-    const canvas = canvasRef.current || document.createElement('canvas');
-    canvas.width = 160;
-    canvas.height = 120;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  useEffect(() => {
+    if (!cameraReady || !isActive || !aiModel) return;
 
     const detectLoop = async () => {
       const video = videoRef.current;
       if (!video || video.readyState < 2) return;
 
       try {
-        if (hasNativeDetector && nativeDetector) {
-          // Native browser FaceDetector
-          const faces = await nativeDetector.detect(video);
-          evaluateNativeDetections(faces, video.videoWidth || 320, video.videoHeight || 240);
+        const isCalibrating = Date.now() - startupTimeRef.current < 3500;
+        const predictions = await aiModel.detect(video);
+        
+        let personCount = 0;
+        let cellPhoneDetected = false;
+        const detectedBoxes = [];
+        const vW = video.videoWidth || 320;
+        const vH = video.videoHeight || 240;
+
+        predictions.forEach(prediction => {
+          if (prediction.class === 'person') {
+            personCount++;
+            // Flip X coordinate because video is mirrored
+            const mirroredX = ((vW - prediction.bbox[0] - prediction.bbox[2]) / vW) * 100;
+            detectedBoxes.push({
+              x: mirroredX,
+              y: (prediction.bbox[1] / vH) * 100,
+              w: (prediction.bbox[2] / vW) * 100,
+              h: (prediction.bbox[3] / vH) * 100,
+              isViolation: personCount > 1,
+              label: `PERSON ${personCount}`
+            });
+          } else if (prediction.class === 'cell phone' || prediction.class === 'laptop' || prediction.class === 'tv') {
+            cellPhoneDetected = true;
+          }
+        });
+
+        setFaceBoxes(detectedBoxes);
+
+        // 1. Check for unauthorized devices
+        if (cellPhoneDetected) {
+          consecutiveFailuresRef.current.noFace = 0;
+          consecutiveFailuresRef.current.phone = (consecutiveFailuresRef.current.phone || 0) + 1;
+          if (consecutiveFailuresRef.current.phone >= 3 && !isCalibrating) {
+            setProctorStatus('multiple-faces'); // Using red color
+            setStatusMessage('🚨 Device Detected!');
+            triggerWarning('device-detected', 'Mobile phone or unauthorized device detected in frame!');
+          }
+          return;
         } else {
-          // High-performance Computer Vision (mirrored capture)
-          ctx.save();
-          ctx.translate(160, 0);
-          ctx.scale(-1, 1);
-          ctx.drawImage(video, 0, 0, 160, 120);
-          ctx.restore();
-          const frame = ctx.getImageData(0, 0, 160, 120);
-          evaluateCanvasCV(frame);
+          consecutiveFailuresRef.current.phone = 0;
         }
+
+        // 2. Check for multiple people
+        if (personCount > 1) {
+          consecutiveFailuresRef.current.noFace = 0;
+          consecutiveFailuresRef.current.multiFace = (consecutiveFailuresRef.current.multiFace || 0) + 1;
+          if (consecutiveFailuresRef.current.multiFace >= 3 && !isCalibrating) {
+            setProctorStatus('multiple-faces');
+            setStatusMessage('🚨 Multiple People!');
+            triggerWarning('multiple-faces-detected', 'Multiple people detected in webcam! Exam must be taken alone.');
+          }
+          return;
+        } else {
+          consecutiveFailuresRef.current.multiFace = 0;
+        }
+
+        // 3. Check for NO face
+        if (personCount === 0) {
+          consecutiveFailuresRef.current.noFace = (consecutiveFailuresRef.current.noFace || 0) + 1;
+          if (consecutiveFailuresRef.current.noFace >= 6 && !isCalibrating) {
+            setProctorStatus('no-face');
+            setStatusMessage('⚠️ No Face Detected');
+            triggerWarning('no-face-detected', 'No face detected in webcam! Please face the screen.');
+          } else if (!isCalibrating && consecutiveFailuresRef.current.noFace >= 3) {
+            setProctorStatus('no-face');
+            setStatusMessage('⚠️ Adjust Position');
+          }
+          return;
+        }
+
+        // Exactly 1 person verified
+        consecutiveFailuresRef.current.noFace = 0;
+        setProctorStatus('verified');
+        setStatusMessage(isCalibrating ? '● Calibrating Proctor...' : '● Area Verified (1 Person)');
+
       } catch (err) {
-        // Fallback to Canvas CV if native detection throws
-        try {
-          ctx.save();
-          ctx.translate(160, 0);
-          ctx.scale(-1, 1);
-          ctx.drawImage(video, 0, 0, 160, 120);
-          ctx.restore();
-          const frame = ctx.getImageData(0, 0, 160, 120);
-          evaluateCanvasCV(frame);
-        } catch (e) {}
+        console.error(err);
       }
     };
 
-    // Run detection every 750ms
-    intervalRef.current = setInterval(detectLoop, 750);
-
+    // Run detection every 800ms
+    intervalRef.current = setInterval(detectLoop, 800);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [cameraReady, isActive]);
-
-  // Evaluate Native Faces (when supported by browser)
-  const evaluateNativeDetections = (faces, vW, vH) => {
-    const isCalibrating = Date.now() - startupTimeRef.current < 3500;
-
-    if (!faces || faces.length === 0) {
-      consecutiveFailuresRef.current.noFace++;
-      consecutiveFailuresRef.current.multiFace = 0;
-      setFaceBoxes([]);
-
-      if (consecutiveFailuresRef.current.noFace >= 8 && !isCalibrating) {
-        setProctorStatus('no-face');
-        setStatusMessage('⚠️ No Face Detected');
-        triggerWarning('no-face-detected', 'No face detected in webcam! Please face the screen.');
-      } else if (!isCalibrating && consecutiveFailuresRef.current.noFace >= 3) {
-        setStatusMessage('⚠️ Adjust Position');
-      }
-      return;
-    }
-
-    if (faces.length > 1) {
-      consecutiveFailuresRef.current.multiFace++;
-      consecutiveFailuresRef.current.noFace = 0;
-      setFaceBoxes(
-        faces.map((f, idx) => ({
-          x: ((vW - f.boundingBox.x - f.boundingBox.width) / vW) * 100,
-          y: (f.boundingBox.y / vH) * 100,
-          w: (f.boundingBox.width / vW) * 100,
-          h: (f.boundingBox.height / vH) * 100,
-          isViolation: true,
-          label: `PERSON ${idx + 1}`,
-        }))
-      );
-
-      if (consecutiveFailuresRef.current.multiFace >= 4 && !isCalibrating) {
-        setProctorStatus('multiple-faces');
-        setStatusMessage('🚨 Multiple People Detected!');
-        triggerWarning(
-          'multiple-faces-detected',
-          'Multiple people detected in webcam! Exam must be taken alone.'
-        );
-      }
-      return;
-    }
-
-    // Exactly 1 face
-    consecutiveFailuresRef.current.noFace = 0;
-    consecutiveFailuresRef.current.multiFace = 0;
-
-    const face = faces[0];
-    const box = face.boundingBox;
-    // Mirror X coordinate since video has scaleX(-1)
-    const mirroredX = ((vW - box.x - box.width) / vW) * 100;
-    const centerX = box.x + box.width / 2;
-    const normCenterX = centerX / vW;
-
-    if (normCenterX < 0.12 || normCenterX > 0.88) {
-      consecutiveFailuresRef.current.lookAway++;
-      if (consecutiveFailuresRef.current.lookAway >= 8 && !isCalibrating) {
-        setProctorStatus('looking-away');
-        setStatusMessage('⚠️ Looking Away from Screen');
-        triggerWarning('looking-away', 'You are looking away from the exam screen.');
-      }
-    } else {
-      consecutiveFailuresRef.current.lookAway = 0;
-      setProctorStatus('verified');
-      setStatusMessage(isCalibrating ? '● Calibrating Proctor...' : '● Face Verified (1 Person)');
-    }
-
-    setFaceBoxes([
-      {
-        x: Math.round(mirroredX),
-        y: Math.round((box.y / vH) * 100),
-        w: Math.round((box.width / vW) * 100),
-        h: Math.round((box.height / vH) * 100),
-        isViolation: false,
-        label: 'EXAMINEE (1 PERSON)',
-      },
-    ]);
-  };
-
-  // High-Precision Canvas Computer Vision (Zero-Dependency & Universal)
-  const evaluateCanvasCV = (frame) => {
-    const isCalibrating = Date.now() - startupTimeRef.current < 3500;
-    const data = frame.data;
-    const w = frame.width;
-    const h = frame.height;
-    const totalPixels = w * h;
-
-    let totalLuminance = 0;
-    let skinPixels = 0;
-    let edgePixels = 0;
-    let sumX = 0;
-    let sumY = 0;
-    let minSkinX = w;
-    let maxSkinX = 0;
-    let minSkinY = h;
-    let maxSkinY = 0;
-
-    for (let i = 0; i < data.length; i += 4) {
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-      const pixelIdx = i / 4;
-      const x = pixelIdx % w;
-      const y = Math.floor(pixelIdx / w);
-
-      // ITU-R BT.601 Luminance & Chrominance (YCbCr)
-      const Y = 0.299 * r + 0.587 * g + 0.114 * b;
-      const Cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
-      const Cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
-      totalLuminance += Y;
-
-      // Normalized RGB Chromaticity
-      const sumRGB = r + g + b;
-      const rn = sumRGB > 0 ? r / sumRGB : 0;
-      const gn = sumRGB > 0 ? g / sumRGB : 0;
-
-      // Standard Human Skin Color Model (YCbCr + Normalized RGB)
-      // Eliminates false triggers on yellow/beige background walls while covering real human ethnicities
-      const isSkinYCbCr = Cb >= 77 && Cb <= 130 && Cr >= 133 && Cr <= 173 && Y >= 30 && Y <= 235;
-      const isSkinNorm =
-        rn >= 0.34 &&
-        rn <= 0.58 &&
-        gn >= 0.26 &&
-        gn <= 0.38 &&
-        rn >= gn &&
-        r > b &&
-        sumRGB >= 70;
-
-      const isSkin = isSkinYCbCr || isSkinNorm;
-
-      if (isSkin) {
-        skinPixels++;
-        sumX += x;
-        sumY += y;
-        if (x < minSkinX) minSkinX = x;
-        if (x > maxSkinX) maxSkinX = x;
-        if (y < minSkinY) minSkinY = y;
-        if (y > maxSkinY) maxSkinY = y;
-      }
-
-      // Central facial region structural edge detection (eyes, eyebrows, nose, mouth)
-      // Central 70% width (x: 24..136) and 75% height (y: 15..105)
-      if (x >= 24 && x <= 136 && y >= 15 && y <= 105 && x < w - 1 && y < h - 1) {
-        const nextIdx = (pixelIdx + 1) * 4;
-        const downIdx = (pixelIdx + w) * 4;
-        const rightY = 0.299 * data[nextIdx] + 0.587 * data[nextIdx + 1] + 0.114 * data[nextIdx + 2];
-        const downY = 0.299 * data[downIdx] + 0.587 * data[downIdx + 1] + 0.114 * data[downIdx + 2];
-
-        const edgeGrad = Math.abs(Y - rightY) + Math.abs(Y - downY);
-        if (edgeGrad > 18) {
-          edgePixels++;
-        }
-      }
-    }
-
-    const avgBrightness = totalLuminance / totalPixels;
-
-    // ── CASE 1: Camera physically covered or dark / overexposed ──
-    if (avgBrightness < 10) {
-      consecutiveFailuresRef.current.noFace++;
-      if (consecutiveFailuresRef.current.noFace >= 8 && !isCalibrating) {
-        setProctorStatus('no-face');
-        setStatusMessage('⚠️ Camera Obstructed / Too Dark');
-        setFaceBoxes([]);
-        triggerWarning('camera-obstructed', 'Camera appears covered or the room is too dark!');
-      }
-      return;
-    }
-
-    if (avgBrightness > 248) {
-      consecutiveFailuresRef.current.noFace++;
-      if (consecutiveFailuresRef.current.noFace >= 8 && !isCalibrating) {
-        setProctorStatus('no-face');
-        setStatusMessage('⚠️ Camera Overexposed');
-        setFaceBoxes([]);
-        triggerWarning('camera-obstructed', 'Camera is washed out or overexposed!');
-      }
-      return;
-    }
-
-    // ── CASE 2: Real Examinee Present (1 Person Verified) ──
-    // A real person has skin pixels AND facial structural features (eyes, nose, mouth)
-    // A blank wall or empty room has < 30 edge pixels and will NOT pass this check!
-    const isPersonPresent =
-      (skinPixels >= 100 && edgePixels >= 40) ||
-      (edgePixels >= 100 && avgBrightness >= 25);
-
-    if (isPersonPresent) {
-      consecutiveFailuresRef.current.noFace = 0;
-      consecutiveFailuresRef.current.multiFace = 0;
-
-      const avgX = skinPixels > 0 ? sumX / skinPixels : w / 2;
-      const avgY = skinPixels > 0 ? sumY / skinPixels : h / 2;
-      const normX = avgX / w;
-
-      if (normX < 0.12 || normX > 0.88) {
-        consecutiveFailuresRef.current.lookAway++;
-        if (consecutiveFailuresRef.current.lookAway >= 8 && !isCalibrating) {
-          setProctorStatus('looking-away');
-          setStatusMessage('⚠️ Looking Away from Screen');
-          triggerWarning('looking-away', 'You are looking away from the exam screen.');
-        }
-      } else {
-        consecutiveFailuresRef.current.lookAway = 0;
-        setProctorStatus('verified');
-        setStatusMessage(isCalibrating ? '● Calibrating Proctor...' : '● Face Verified (1 Person)');
-      }
-
-      // Compute smooth bounding box around examinee
-      let targetW = 38;
-      let targetH = 55;
-      let targetX = ((avgX - 25) / w) * 100;
-      let targetY = ((avgY - 30) / h) * 100;
-
-      if (skinPixels >= 80 && maxSkinX > minSkinX && maxSkinY > minSkinY) {
-        const clusterW = ((maxSkinX - minSkinX + 16) / w) * 100;
-        const clusterH = ((maxSkinY - minSkinY + 20) / h) * 100;
-        targetW = Math.max(30, Math.min(65, clusterW));
-        targetH = Math.max(40, Math.min(75, clusterH));
-        targetX = Math.max(5, Math.min(95 - targetW, ((minSkinX - 8) / w) * 100));
-        targetY = Math.max(5, Math.min(95 - targetH, ((minSkinY - 10) / h) * 100));
-      } else {
-        targetX = Math.max(5, Math.min(95 - targetW, targetX));
-        targetY = Math.max(5, Math.min(95 - targetH, targetY));
-      }
-
-      // Smooth jitter using Exponential Moving Average
-      if (!smoothBoxRef.current) {
-        smoothBoxRef.current = { x: targetX, y: targetY, w: targetW, h: targetH };
-      } else {
-        smoothBoxRef.current = {
-          x: smoothBoxRef.current.x * 0.7 + targetX * 0.3,
-          y: smoothBoxRef.current.y * 0.7 + targetY * 0.3,
-          w: smoothBoxRef.current.w * 0.7 + targetW * 0.3,
-          h: smoothBoxRef.current.h * 0.7 + targetH * 0.3,
-        };
-      }
-
-      setFaceBoxes([
-        {
-          x: Math.round(smoothBoxRef.current.x),
-          y: Math.round(smoothBoxRef.current.y),
-          w: Math.round(smoothBoxRef.current.w),
-          h: Math.round(smoothBoxRef.current.h),
-          isViolation: proctorStatus !== 'verified',
-          label: 'EXAMINEE (1 PERSON)',
-        },
-      ]);
-      return;
-    }
-
-    // ── CASE 3: No Person in Frame (Student Walked Away / Room Empty) ──
-    consecutiveFailuresRef.current.noFace++;
-    consecutiveFailuresRef.current.multiFace = 0;
-    setFaceBoxes([]);
-
-    if (consecutiveFailuresRef.current.noFace >= 8 && !isCalibrating) {
-      setProctorStatus('no-face');
-      setStatusMessage('⚠️ No Face Detected');
-      triggerWarning('no-face-detected', 'No face detected in webcam! Please face the screen.');
-    } else if (!isCalibrating && consecutiveFailuresRef.current.noFace >= 3) {
-      setProctorStatus('no-face');
-      setStatusMessage('⚠️ No Face Detected');
-    }
-  };
+  }, [cameraReady, isActive, aiModel, triggerWarning]);
 
   const getStatusColor = () => {
     switch (proctorStatus) {
